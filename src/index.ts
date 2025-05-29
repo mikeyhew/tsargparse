@@ -35,9 +35,13 @@ type ExtractUnoptionalArgType<T extends BaseArgDef> = T extends {
     ? ExtractBuiltinArgType<T["type"]>
     : unknown;
 
-export type ExtractArgType<T extends BaseArgDef> = T extends { required: true }
+export type ExtractArgType<T extends BaseArgDef> = T extends
+  | { required: true }
+  | { type: "boolean" }
   ? ExtractUnoptionalArgType<T>
-  : ExtractUnoptionalArgType<T> | undefined;
+  : T extends { default: infer U }
+    ? ExtractUnoptionalArgType<T> | U
+    : ExtractUnoptionalArgType<T> | undefined;
 
 export type ExtractArgTypes<T extends BaseArgDefs> = {
   [K in keyof T]: ExtractArgType<T[K]>;
@@ -138,7 +142,12 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
 ): ParseResult<ExtractArgTypes<ArgDefs>> {
   const argDefsArray = simplifyArgDefs(argDefs);
 
-  const options: { [key: string]: unknown } = {};
+  // start with default options
+  const options: { [key: string]: unknown } = Object.fromEntries(
+    argDefsArray
+      .filter((argDef) => "default" in argDef)
+      .map((argDef) => [argDef.key, argDef.default]),
+  );
 
   for (let i = 0; i < argsAfterBin.length; i++) {
     const arg = argsAfterBin[i]!;
@@ -239,10 +248,16 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
     return { error: `Unexpected positional argument: ${arg}` };
   }
 
-  // set boolean options to true or false
+  // postprocess options
   for (const argDef of argDefsArray) {
     if (argDef.type === "boolean") {
       options[argDef.key] = !!options[argDef.key];
+    }
+
+    if (argDef.required && !(argDef.key in options)) {
+      return {
+        error: `Missing required value for option ${argDef.long ? `--${argDef.long}` : argDef.short ? `-${argDef.short}` : argDef.key}`,
+      };
     }
   }
 
