@@ -1,0 +1,12 @@
+{
+  "name": "tsargs",
+  "version": "0.0.0",
+  "description": "",
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@types/node": "^22.15.24"
+  }
+}
