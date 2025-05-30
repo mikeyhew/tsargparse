@@ -14,6 +14,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true
-  }
+    "noPropertyAccessFromIndexSignature": true,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules"]
 }

@@ -2,9 +2,13 @@
   "name": "tsargs",
   "version": "0.0.0",
   "description": "",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "devDependencies": {
-    "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
   },
   "dependencies": {
     "@types/node": "^22.15.24"

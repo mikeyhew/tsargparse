@@ -164,7 +164,7 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
       );
 
       if (!argDef) {
-        return { error: `Unknown option --${longOptionHyphenated}` };
+        return { error: `Unrecognized option --${longOptionHyphenated}` };
       }
 
       if ("type" in argDef && argDef.type === "boolean") {
@@ -216,7 +216,7 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
       for (const shortOption of shortOptions) {
         const argDef = argDefsArray.find((def) => def.short === shortOption);
         if (!argDef) {
-          return { error: `Unknown short option -${shortOption}` };
+          return { error: `Unrecognized option -${shortOption}` };
         }
 
         if ("type" in argDef && argDef.type === "boolean") {
