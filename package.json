@@ -1,8 +1,15 @@
 {
   "name": "tsargparse",
+  "author": "Michael Hewson",
+  "description": "A TypeScript library for parsing command-line arguments",
   "version": "0.0.0",
-  "description": "",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
   "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

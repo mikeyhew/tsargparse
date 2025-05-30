@@ -1,7 +1,7 @@
 // tests/index.test.ts
 
 import { describe, it, expect } from "vitest";
-import { TSArgParser } from "../src/index";
+import { TSArgParser } from "../src/index.js";
 
 describe("TSArgParser", () => {
   it("should parse with no arguments", () => {

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "outDir": "./dist",
     "target": "esnext",
     "strict": true,
     "noImplicitAny": true,
@@ -16,7 +17,8 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "module": "nodenext",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "declaration": true
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules"]
