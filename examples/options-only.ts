@@ -1,6 +1,11 @@
 import { TSArgs } from "../src/index.js";
 
 const args = TSArgs({
+  flag: {
+    description: "Some Boolean flag",
+    type: "boolean",
+    default: false,
+  },
   foo: {
     description: "Description for foo",
     required: true,

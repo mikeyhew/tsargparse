@@ -3,22 +3,36 @@ import chalk from "chalk";
 export type ParseResult<T> = { ok: T } | { error: string };
 
 export type BaseArgDefs = {
-  [key: string]: BaseArgDef;
+  [key: string]: ArgDef;
 };
 
-type BuiltinArgType = "string" | "number" | "boolean";
+export type ArgDef =
+  | ({
+      positional: true;
+    } & BaseArgDef)
+  | ({ positional?: false } & OptionDef);
 
-export type BaseArgDef = (
+export type OptionDef = {
+  long?: string;
+  short?: string;
+} & BaseArgDef;
+
+export type BaseArgDef = {
+  required?: boolean;
+  default?: unknown;
+  valueName?: string;
+  description?: string;
+} & (
   | {
+      type: BuiltinArgType;
+    }
+  | {
+      type: "custom";
       parse: (argStr: string) => ParseResult<unknown>;
     }
-  | { type: BuiltinArgType }
-) & {
-  required?: boolean;
-  short?: string;
-  long?: string | false;
-  description?: string;
-};
+);
+
+type BuiltinArgType = "string" | "number" | "boolean";
 
 type ExtractBuiltinArgType<T extends BuiltinArgType> = T extends "string"
   ? string
@@ -80,7 +94,13 @@ export function TSArgs<ArgDefs extends BaseArgDefs>(
     if ("error" in parseResult) {
       console.error(`${chalk.bold("Error:")} ${parseResult.error}`);
       console.error();
-      console.error(usage(argv.slice(0, 2), simplifyArgDefs(argDefs)));
+      console.error(
+        usage(
+          argv.slice(0, 2),
+          getPositionalArgDefs(argDefs),
+          getOptionDefs(argDefs),
+        ),
+      );
       console.error();
       process.exit(1);
     }
@@ -94,24 +114,61 @@ export function TSArgs<ArgDefs extends BaseArgDefs>(
   };
 }
 
-function usage(binArgs: string[], argDefs: SimplifiedArgDef[]): string {
+function usage(
+  binArgs: string[],
+  positionalArgDefs: BaseArgDefWithKey[],
+  optionDefs: OptionDefWithKey[],
+): string {
   let output = [];
 
-  output.push(`${chalk.bold("Usage:")} ${binArgs.join(" ")} [OPTIONS]`);
+  const positionalArgText = positionalArgDefs
+    .map((argDef) => {
+      return `<${camelCaseToKebabCase(argDef.key).toUpperCase()}>`;
+    })
+    .join(" ");
+
+  output.push(
+    `${chalk.bold("Usage:")} ${binArgs.join(" ")}${positionalArgText ? " " + positionalArgText : ""} ${optionDefs.length > 0 ? "[OPTIONS]" : ""}`,
+  );
   output.push("");
 
   output.push(chalk.bold("Options:"));
 
-  const optionsRows = argDefs.map((argDef) => {
+  const optionsRows = optionDefs.map((optionDef) => {
     const shortText =
-      argDef.short && argDef.long ? argDef.short + ", " : argDef.short || "";
-    const longText = argDef.long || "";
+      optionDef.short && optionDef.long
+        ? `-${optionDef.short}, `
+        : optionDef.short
+          ? `-${optionDef.short}`
+          : "";
+
+    const longText = optionDef.long ? `--${optionDef.long}` : "";
+
+    const valueName = optionDef.valueName
+      ? optionDef.valueName.toUpperCase()
+      : optionDef.type === "number"
+        ? "NUMBER"
+        : optionDef.type === "string"
+          ? "STRING"
+          : "VALUE";
+
+    const valueText = optionDef.type !== "boolean" ? ` [${valueName}]` : "";
+
+    const defaultText =
+      optionDef.default !== undefined && optionDef.type !== "custom"
+        ? `[Default: ${optionDef.default}]`
+        : "";
+
+    const descriptionText = [
+      ...(optionDef.description ? [optionDef.description] : []),
+      ...(defaultText ? [defaultText] : []),
+    ].join(" ");
 
     return [
       chalk.bold(shortText),
-      chalk.bold(longText),
+      chalk.bold(longText) + valueText,
       "  ",
-      argDef.description || "",
+      descriptionText,
     ];
   });
 
@@ -123,7 +180,7 @@ function usage(binArgs: string[], argDefs: SimplifiedArgDef[]): string {
 }
 
 function parseArgValue(
-  argDef: SimplifiedArgDef,
+  argDef: BaseArgDef,
   argStr: string,
 ): ParseResult<unknown> {
   if ("parse" in argDef) {
@@ -150,13 +207,15 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
   argDefs: ArgDefs,
   argsAfterBin: string[],
 ): ParseResult<ExtractArgTypes<ArgDefs>> {
-  const argDefsArray = simplifyArgDefs(argDefs);
+  const optionArgDefs = getOptionDefs(argDefs);
+  const positionalArgDefs = getPositionalArgDefs(argDefs);
+  const remainingPositionalArgDefs = [...positionalArgDefs];
 
-  // start with default options
-  const options: { [key: string]: unknown } = Object.fromEntries(
-    argDefsArray
-      .filter((argDef) => "default" in argDef)
-      .map((argDef) => [argDef.key, argDef.default]),
+  // start with default arg Values
+  const argValues: { [key: string]: unknown } = Object.fromEntries(
+    Object.entries(argDefs)
+      .filter(([_key, argDef]) => "default" in argDef)
+      .map(([key, argDef]) => [key, argDef.default]),
   );
 
   for (let i = 0; i < argsAfterBin.length; i++) {
@@ -169,7 +228,7 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
       const optionValueAfterEquals =
         indexOfEquals === -1 ? undefined : arg.slice(indexOfEquals + 1);
 
-      const argDef = argDefsArray.find(
+      const argDef = optionArgDefs.find(
         (def) => def.long && def.long === longOptionHyphenated,
       );
 
@@ -183,7 +242,7 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
             error: `Unexpect value provided for boolean option --${longOptionHyphenated}`,
           };
         }
-        options[argDef.key] = true;
+        argValues[argDef.key] = true;
         continue;
       }
 
@@ -196,7 +255,7 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
           };
         }
 
-        options[argDef.key] = parseResult.ok;
+        argValues[argDef.key] = parseResult.ok;
         continue;
       }
 
@@ -217,20 +276,20 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
         };
       }
 
-      options[argDef.key] = parseResult.ok;
+      argValues[argDef.key] = parseResult.ok;
       continue;
     }
 
     if (arg.startsWith("-")) {
       const shortOptions = arg.slice(1);
       for (const shortOption of shortOptions) {
-        const argDef = argDefsArray.find((def) => def.short === shortOption);
+        const argDef = optionArgDefs.find((def) => def.short === shortOption);
         if (!argDef) {
           return { error: `Unrecognized option -${shortOption}` };
         }
 
         if ("type" in argDef && argDef.type === "boolean") {
-          options[argDef.key] = true;
+          argValues[argDef.key] = true;
           continue;
         }
 
@@ -248,59 +307,76 @@ function parseArgs<ArgDefs extends BaseArgDefs>(
           };
         }
 
-        options[argDef.key] = parseResult.ok;
+        argValues[argDef.key] = parseResult.ok;
         continue;
       }
 
       continue;
     }
 
-    return { error: `Unexpected positional argument: ${arg}` };
-  }
+    const nextPositionalArgDef = remainingPositionalArgDefs.shift();
 
-  // postprocess options
-  for (const argDef of argDefsArray) {
-    if (argDef.type === "boolean") {
-      options[argDef.key] = !!options[argDef.key];
+    if (!nextPositionalArgDef) {
+      return { error: `Unexpected positional argument: ${arg}` };
     }
 
-    if (argDef.required && !(argDef.key in options)) {
+    const parseResult = parseArgValue(nextPositionalArgDef, arg);
+
+    if ("error" in parseResult) {
       return {
-        error: `Missing required value for option ${argDef.long ? `--${argDef.long}` : argDef.short ? `-${argDef.short}` : argDef.key}`,
+        error: `Failed to parse value for positional argument ${nextPositionalArgDef.key}: ${parseResult.error}`,
+      };
+    }
+
+    argValues[nextPositionalArgDef.key] = parseResult.ok;
+    continue;
+  }
+
+  // postprocess arg values
+  for (const [key, argDef] of Object.entries(argDefs)) {
+    if (argDef.type === "boolean") {
+      argValues[key] = !!argValues[key];
+    }
+
+    if (argDef.required && !(key in argValues)) {
+      const argText = argDef.positional
+        ? `positional argument ${camelCaseToKebabCase(key).toUpperCase()}`
+        : `option --${argDef.long || camelCaseToKebabCase(key)}`;
+
+      return {
+        error: `Missing required value for ${argText}`,
       };
     }
   }
 
-  return { ok: options as ExtractArgTypes<ArgDefs> };
+  return { ok: argValues as ExtractArgTypes<ArgDefs> };
 }
 
-type SimplifiedArgDef = {
-  key: string;
-  long: string | false;
-  short: string | false;
-  description: string | undefined;
-  required: boolean;
-} & (
-  | { type: "custom"; parse: (argStr: string) => ParseResult<unknown> }
-  | { type: BuiltinArgType }
-);
+type OptionDefWithKey = OptionDef & { key: string };
 
-function simplifyArgDefs(argDefs: BaseArgDefs): SimplifiedArgDef[] {
-  return Object.entries(argDefs).map(([key, argDef]): SimplifiedArgDef => {
-    return {
-      key,
-      long:
-        argDef.long === false
-          ? false
-          : argDef.long || camelCaseToKebabCase(key),
-      short: argDef.short || false,
-      description: argDef.description,
-      required: argDef.required || false,
-      ...("type" in argDef
-        ? { type: argDef.type }
-        : { type: "custom", parse: argDef.parse }),
-    };
-  });
+function getOptionDefs(argDefs: BaseArgDefs): OptionDefWithKey[] {
+  return Object.entries(argDefs)
+    .filter(([_key, argDef]) => !argDef.positional)
+    .map(([key, argDef]: [string, OptionDef]) => {
+      return {
+        ...argDef,
+        key,
+        long: argDef.long || camelCaseToKebabCase(key),
+      };
+    });
+}
+
+type BaseArgDefWithKey = BaseArgDef & { key: string };
+
+function getPositionalArgDefs(argDefs: BaseArgDefs): BaseArgDefWithKey[] {
+  return Object.entries(argDefs)
+    .filter(([_key, argDef]) => argDef.positional)
+    .map(([key, argDef]: [string, BaseArgDef]) => {
+      return {
+        ...argDef,
+        key,
+      };
+    });
 }
 
 function camelCaseToKebabCase(str: string): string {
