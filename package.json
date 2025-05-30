@@ -11,6 +11,8 @@
     "vitest": "^3.1.4"
   },
   "dependencies": {
-    "@types/node": "^22.15.24"
+    "@types/node": "^22.15.24",
+    "chalk": "^5.4.1",
+    "cliui": "^9.0.1"
   }
 }

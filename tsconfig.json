@@ -15,8 +15,7 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "nodenext",
     "esModuleInterop": true
   },
   "include": ["src/**/*", "tests/**/*"],

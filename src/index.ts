@@ -1,3 +1,5 @@
+import chalk from "chalk";
+
 export type ParseResult<T> = { ok: T } | { error: string };
 
 export type BaseArgDefs = {
@@ -15,6 +17,7 @@ export type BaseArgDef = (
   required?: boolean;
   short?: string;
   long?: string | false;
+  description?: string;
 };
 
 type ExtractBuiltinArgType<T extends BuiltinArgType> = T extends "string"
@@ -75,8 +78,10 @@ export function TSArgs<ArgDefs extends BaseArgDefs>(
     const parseResult = parse(argv);
 
     if ("error" in parseResult) {
-      console.error(`Error: ${parseResult.error}`);
+      console.error(`${chalk.bold("Error:")} ${parseResult.error}`);
+      console.error();
       console.error(usage(argv.slice(0, 2), simplifyArgDefs(argDefs)));
+      console.error();
       process.exit(1);
     }
 
@@ -92,22 +97,27 @@ export function TSArgs<ArgDefs extends BaseArgDefs>(
 function usage(binArgs: string[], argDefs: SimplifiedArgDef[]): string {
   let output = [];
 
-  output.push(`Usage: ${binArgs.join(" ")} [OPTIONS]`);
+  output.push(`${chalk.bold("Usage:")} ${binArgs.join(" ")} [OPTIONS]`);
   output.push("");
 
-  output.push("Options:");
+  output.push(chalk.bold("Options:"));
 
-  for (const argDef of argDefs) {
-    const short = argDef.short ? [`-${argDef.short}`] : [];
-    const long = argDef.long ? [`--${argDef.long}`] : [];
-    const optionNames = [...short, ...long];
+  const optionsRows = argDefs.map((argDef) => {
+    const shortText =
+      argDef.short && argDef.long ? argDef.short + ", " : argDef.short || "";
+    const longText = argDef.long || "";
 
-    if (optionNames.length === 0) {
-      continue;
-    }
+    return [
+      chalk.bold(shortText),
+      chalk.bold(longText),
+      "  ",
+      argDef.description || "",
+    ];
+  });
 
-    output.push(`  ${optionNames.join(", ")}`);
-  }
+  output.push(
+    outputTable(optionsRows, ["right", "left", "left", "left"], "  "),
+  );
 
   return output.join("\n");
 }
@@ -268,6 +278,7 @@ type SimplifiedArgDef = {
   key: string;
   long: string | false;
   short: string | false;
+  description: string | undefined;
   required: boolean;
 } & (
   | { type: "custom"; parse: (argStr: string) => ParseResult<unknown> }
@@ -283,6 +294,7 @@ function simplifyArgDefs(argDefs: BaseArgDefs): SimplifiedArgDef[] {
           ? false
           : argDef.long || camelCaseToKebabCase(key),
       short: argDef.short || false,
+      description: argDef.description,
       required: argDef.required || false,
       ...("type" in argDef
         ? { type: argDef.type }
@@ -303,4 +315,60 @@ function camelCaseToKebabCase(str: string): string {
   }
 
   return output;
+}
+
+type Justification = "left" | "right";
+
+function outputTable(
+  rows: string[][],
+  justifications: Justification[],
+  indentation: string,
+): string {
+  const maxColumnLengths: number[] = [];
+
+  for (const row of rows) {
+    row.forEach((cellText, i) => {
+      maxColumnLengths[i] = Math.max(
+        maxColumnLengths[i] || 0,
+        visibleLen(cellText),
+      );
+    });
+  }
+
+  return rows
+    .map((row) => {
+      return (
+        indentation +
+        row
+          .map((cellText, i) => {
+            const justification = justifications[i] || "left";
+            const maxColumnLength = maxColumnLengths[i] || 0;
+
+            const paddedText =
+              justification === "left"
+                ? padEndVisible(cellText, maxColumnLength, " ")
+                : padStartVisible(cellText, maxColumnLength, " ");
+
+            return paddedText;
+          })
+          .join("")
+      );
+    })
+    .join("\n");
+}
+
+const ANSI = /\x1b\[[0-9;]*m/g;
+
+const visibleLen = (s: string) => s.replace(ANSI, "").length;
+
+function padStartVisible(str: string, minWidth: number, ch = " ") {
+  const len = visibleLen(str);
+  if (len >= minWidth) return str;
+  return ch.repeat(minWidth - len) + str;
+}
+
+function padEndVisible(str: string, minWidth: number, ch = " ") {
+  const len = visibleLen(str);
+  if (len >= minWidth) return str;
+  return str + ch.repeat(minWidth - len);
 }
