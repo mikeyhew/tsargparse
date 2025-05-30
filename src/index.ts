@@ -68,7 +68,7 @@ export type BaseArgTypes = {
   [key: string]: unknown;
 };
 
-export type TSArgs<ArgTypes extends BaseArgTypes> = {
+export type TSArgParser<ArgTypes extends BaseArgTypes> = {
   parse(): ParseResult<ArgTypes>;
   parse(argv: string[]): ParseResult<ArgTypes>;
 
@@ -76,9 +76,9 @@ export type TSArgs<ArgTypes extends BaseArgTypes> = {
   parse(argv: string[]): ParseResult<ArgTypes>;
 };
 
-export function TSArgs<ArgDefs extends BaseArgDefs>(
+export function TSArgParser<ArgDefs extends BaseArgDefs>(
   argDefs: ArgDefs,
-): TSArgs<ExtractArgTypes<ArgDefs>> {
+): TSArgParser<ExtractArgTypes<ArgDefs>> {
   const parse = (
     argvPassed?: string[],
   ): ParseResult<ExtractArgTypes<ArgDefs>> => {

@@ -1,6 +1,6 @@
-import { TSArgs } from "../src/index.js";
+import { TSArgParser } from "../src/index.js";
 
-const args = TSArgs({
+const args = TSArgParser({
   firstPositional: {
     positional: true,
     description: "First positional argument",

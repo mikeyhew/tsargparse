@@ -1,11 +1,11 @@
 // tests/index.test.ts
 
-import { describe, it, expect, vi } from "vitest";
-import { TSArgs } from "../src/index";
+import { describe, it, expect } from "vitest";
+import { TSArgParser } from "../src/index";
 
-describe("TSArgs", () => {
+describe("TSArgParser", () => {
   it("should parse with no arguments", () => {
-    const args = TSArgs({});
+    const args = TSArgParser({});
 
     const resultNoArgs = args.parse(["node", "script.js"]);
     expect(resultNoArgs).toEqual({ ok: {} });
@@ -21,7 +21,7 @@ describe("TSArgs", () => {
   });
 
   it("should parse string arguments", () => {
-    const args = TSArgs({
+    const args = TSArgParser({
       name: { type: "string" },
     });
 
