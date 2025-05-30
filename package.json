@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mikeyhew/tsargparse.git"
+  },
   "main": "./dist/index.js",
   "files": [
     "dist",
